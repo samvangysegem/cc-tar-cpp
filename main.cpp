@@ -17,7 +17,8 @@ extern "C" int main(int argc, char *argv[]) {
     Parser parser{};
     auto fileHeaders = parser.ParseFileHeaders(argv[2]);
     for (const auto &header : fileHeaders) {
-      std::cout << header.fileName << std::endl;
+      std::cout << header.fileName << " " << header.fileSize << "B"
+                << std::endl;
     }
   }
 

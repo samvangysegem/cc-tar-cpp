@@ -10,7 +10,7 @@ struct TarHeader {
   std::uint64_t fileSize;
   std::uint64_t fileMode;
 
-  std::uint64_t ownerID;
+  std::uint64_t userID;
   std::uint64_t groupID;
   std::uint64_t checkSum;
 
