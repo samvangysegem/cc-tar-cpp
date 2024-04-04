@@ -1,8 +1,8 @@
 #include "detail.hpp"
+#include "common.hpp"
 
 #include <cstdlib>
 #include <span>
-#include <string>
 
 namespace cc::tar::detail {
 
@@ -20,11 +20,11 @@ struct HeaderOffsets {
 
 static constexpr std::uint16_t HEADER_SIZE_B = 257;
 
-common::TarHeader ParseHeader(std::span<char> buffer) {
+common::ObjectHeader ParseHeader(std::span<char> buffer) {
   if (buffer.size_bytes() < HEADER_SIZE_B)
     return {};
 
-  common::TarHeader header{};
+  common::ObjectHeader header{};
   header.fileName = std::string(buffer.begin(), buffer.begin() + 100);
   header.fileSize = strtoull(&buffer[HeaderOffsets::FILE_SIZE], nullptr, 8);
   header.fileMode = strtoull(&buffer[HeaderOffsets::FILE_MODE], nullptr, 8);

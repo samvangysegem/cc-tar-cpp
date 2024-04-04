@@ -5,7 +5,7 @@
 
 namespace cc::tar::common {
 
-struct TarHeader {
+struct ObjectHeader {
   std::string fileName;
   std::uint64_t fileSize;
   std::uint64_t fileMode;

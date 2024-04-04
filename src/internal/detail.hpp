@@ -6,6 +6,6 @@
 
 namespace cc::tar::detail {
 
-common::TarHeader ParseHeader(std::span<char> buffer);
+common::ObjectHeader ParseHeader(std::span<char> buffer);
 
 } // namespace cc::tar::detail

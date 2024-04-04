@@ -4,23 +4,51 @@
 #include "parser.hpp"
 
 namespace cc::tar {
+
+std::ostream &operator<<(std::ostream &os, const common::ObjectHeader &header) {
+  os << header.fileName << " " << header.fileSize << "B" << std::endl;
+  return os;
+}
+
 // https://cplusplus.com/doc/tutorial/files/
 extern "C" int main(int argc, char *argv[]) {
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " [options] <filename>\n";
-    return static_cast<int>(ErrorCode::INVALID_ARGS);
+    return InvalidFile::CODE;
   }
 
-  // Perhaps a command pattern could be useful later but for now,
-  // just a hard check
-  if (std::string(argv[1]).compare("-tf") == 0) {
-    Parser parser{};
-    auto fileHeaders = parser.ParseFileHeaders(argv[2]);
-    for (const auto &header : fileHeaders) {
-      std::cout << header.fileName << " " << header.fileSize << "B"
-                << std::endl;
-    }
+  std::string command{argv[1]};
+  if (command.compare("-tf") == 0) {
+    boost::leaf::try_handle_all(
+        [&]() -> Status {
+          Parser parser(argv[2]);
+          BOOST_LEAF_AUTO(contents, parser.ListContents());
+          for (auto const &content : contents) {
+            std::cout << content;
+          }
+          std::cout << std::endl;
+          return Success();
+        },
+        [&]() -> void {
+          // Improve error handling
+          std::cout << "Unexpected error occured!" << std::endl;
+        });
+
+  } else if (command.compare("-xf") == 0) {
+    boost::leaf::try_handle_all(
+        [&]() -> Status {
+          Parser parser(argv[2]);
+          return parser.ExtractContents();
+        },
+        [&]() -> void {
+          // Improve error handling
+          std::cout << "Unexpected error occured!" << std::endl;
+        });
   }
+  // Extract to disk from the archive.  If a file with the same name appears
+  // more than once in the archive, each copy will be extracted, with later
+  // copies overwriting (replacing) earlier copies.  The long option form is
+  // --extract.
 
   return 0;
 }
