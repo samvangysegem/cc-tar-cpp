@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include "file_handler.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -11,18 +11,18 @@
 
 namespace cc::tar {
 
-bool Parser::IsValid() noexcept {
+bool FileHandler::IsValid() noexcept {
   auto validExtension =
-      mFileName.find(".tar", mFileName.size() - 4) != std::string::npos;
+      mTarFilePath.find(".tar", mTarFilePath.size() - 4) != std::string::npos;
   return validExtension;
 }
 
-Result<std::vector<common::ObjectHeader>> Parser::ListContents() noexcept {
+Result<std::vector<common::ObjectHeader>> FileHandler::ListContents() noexcept {
   if (!IsValid()) {
     return NewError(InvalidFile{});
   }
 
-  std::ifstream tarFile(mFileName, std::ios::binary);
+  std::ifstream tarFile(mTarFilePath, std::ios::binary);
   if (!tarFile) {
     return NewError(InvalidStream{});
   }
@@ -49,25 +49,33 @@ Result<std::vector<common::ObjectHeader>> Parser::ListContents() noexcept {
   return {output};
 }
 
-Status Parser::ExtractContents() noexcept {
+Status FileHandler::Extract() noexcept {
   if (!IsValid()) {
     return NewError(InvalidFile{});
   }
 
-  std::ifstream tarFile(mFileName, std::ios::binary);
+  std::ifstream tarFile(mTarFilePath, std::ios::binary);
   if (!tarFile) {
     return NewError(InvalidStream{});
   }
 
   std::vector<char> buffer(CHUNK_SIZE_B);
   while (tarFile.read(buffer.data(), CHUNK_SIZE_B) || tarFile.gcount()) {
-    // Check header validity
     auto header = detail::ParseHeader(buffer);
+
+    // Validate header
     if (header.fileName.empty() || header.fileSize == 0)
       break;
+    if (header.fileName.find("../", 0) != std::string::npos) {
+      return NewError(InvalidContents{.fileName = header.fileName,
+                                      .description = "Path contains \"..\""});
+    }
 
     // Create new file with object contents
     std::ofstream extractedFile(header.fileName, std::ios::binary);
+    if (!extractedFile)
+      return NewError(InvalidStream{});
+
     for (std::uint64_t offset = 0; offset < header.fileSize;
          offset += CHUNK_SIZE_B) {
       // Read full chunk from tar file
@@ -77,10 +85,52 @@ Status Parser::ExtractContents() noexcept {
       auto remainingSize = std::min(header.fileSize - offset, CHUNK_SIZE_B);
       extractedFile.write(buffer.data(), remainingSize);
     }
+
     extractedFile.close();
   }
 
   tarFile.close();
+  return Success();
+}
+
+Status FileHandler::Compress(std::vector<std::string> filePaths) noexcept {
+  if (!IsValid()) {
+    return NewError(InvalidFile{});
+  }
+
+  std::ofstream tarFile(mTarFilePath, std::ios::binary);
+  if (!tarFile) {
+    return NewError(InvalidStream{});
+  }
+
+  std::array<char, CHUNK_SIZE_B> buffer{0x00};
+  for (auto const &filePath : filePaths) {
+    std::ifstream inputFile(filePath, std::ios::binary);
+    if (!inputFile)
+      return NewError(InvalidFile{});
+
+    // Extract header
+    // Write method for extracting header info from filename
+    common::ObjectHeader header{};
+    header.fileName = filePath;
+    header.fileSize = 120;
+
+    // Write to output buffer
+    if (!detail::SerialiseHeader(header, buffer))
+      return NewError(UnexpectedError{});
+    tarFile.write(buffer.data(), buffer.size());
+
+    std::fill(buffer.begin(), buffer.end(), 0x00);
+    while (inputFile.read(buffer.data(), CHUNK_SIZE_B) || inputFile.gcount()) {
+      tarFile.write(buffer.data(), CHUNK_SIZE_B);
+      std::fill(buffer.begin(), buffer.end(), 0x00);
+    }
+
+    inputFile.close();
+  }
+
+  tarFile.close();
+
   return Success();
 }
 

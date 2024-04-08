@@ -1,7 +1,8 @@
 #include <iostream>
 
+#include "boost/leaf/error.hpp"
 #include "error.hpp"
-#include "parser.hpp"
+#include "file_handler.hpp"
 
 namespace cc::tar {
 
@@ -19,36 +20,60 @@ extern "C" int main(int argc, char *argv[]) {
 
   std::string command{argv[1]};
   if (command.compare("-tf") == 0) {
-    boost::leaf::try_handle_all(
-        [&]() -> Status {
-          Parser parser(argv[2]);
-          BOOST_LEAF_AUTO(contents, parser.ListContents());
+    return boost::leaf::try_handle_all(
+        [&]() -> Result<int> {
+          FileHandler handler(argv[2]);
+          BOOST_LEAF_AUTO(contents, handler.ListContents());
           for (auto const &content : contents) {
             std::cout << content;
           }
           std::cout << std::endl;
-          return Success();
+          return {0};
         },
-        [&]() -> void {
+        [&]() -> int {
           // Improve error handling
-          std::cout << "Unexpected error occured!" << std::endl;
+          std::cerr << "Unexpected error occured!" << std::endl;
+          return UnexpectedError::CODE;
         });
 
   } else if (command.compare("-xf") == 0) {
-    boost::leaf::try_handle_all(
-        [&]() -> Status {
-          Parser parser(argv[2]);
-          return parser.ExtractContents();
+    return boost::leaf::try_handle_all(
+        [&]() -> Result<int> {
+          FileHandler handler(argv[2]);
+          BOOST_LEAF_CHECK(handler.Extract());
+          return {0};
         },
-        [&]() -> void {
+        [](InvalidContents err) -> int {
+          std::cerr << err.fileName << ": " << err.description << std::endl;
+          return InvalidContents::CODE;
+        },
+        [&]() -> int {
           // Improve error handling
-          std::cout << "Unexpected error occured!" << std::endl;
+          std::cerr << "Unexpected error occured!" << std::endl;
+          return UnexpectedError::CODE;
+        });
+  } else if (command.compare("-cf") == 0) {
+    if (argc < 3) {
+      std::cerr << "Missing arguments! Usage: cc-tar -cf <filename> "
+                   "<files_to_compress>";
+      return InvalidArgs::CODE;
+    }
+    return boost::leaf::try_handle_all(
+        [&]() -> Result<int> {
+          FileHandler handler(argv[2]);
+          std::vector<std::string> filePaths{};
+          for (auto argsIndex = 3; argsIndex < argc; argsIndex++) {
+            filePaths.emplace_back(argv[argsIndex]);
+          }
+          BOOST_LEAF_CHECK(handler.Compress(filePaths));
+          return {0};
+        },
+        []() -> int {
+          // Improve error handling
+          std::cerr << "Unexpected error occured!" << std::endl;
+          return UnexpectedError::CODE;
         });
   }
-  // Extract to disk from the archive.  If a file with the same name appears
-  // more than once in the archive, each copy will be extracted, with later
-  // copies overwriting (replacing) earlier copies.  The long option form is
-  // --extract.
 
   return 0;
 }

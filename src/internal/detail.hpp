@@ -8,4 +8,7 @@ namespace cc::tar::detail {
 
 common::ObjectHeader ParseHeader(std::span<char> buffer);
 
+bool SerialiseHeader(common::ObjectHeader const &header,
+                     std::span<char> buffer);
+
 } // namespace cc::tar::detail

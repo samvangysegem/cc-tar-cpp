@@ -27,7 +27,7 @@ CPMAddPackage(
 # Main program
 add_executable(cc-tar 
         main.cpp 
-        src/parser.cpp
+        src/file_handler.cpp
         src/detail.cpp
 )
 

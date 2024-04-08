@@ -38,5 +38,13 @@ struct InvalidFile {
 struct InvalidStream {
   static constexpr int CODE = -3;
 };
+struct InvalidContents {
+  static constexpr int CODE = -4;
+  std::string fileName;
+  std::string description;
+};
+struct UnexpectedError {
+  static constexpr int CODE = -99;
+};
 
 } // namespace cc::tar

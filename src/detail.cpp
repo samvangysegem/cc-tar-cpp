@@ -1,6 +1,10 @@
 #include "detail.hpp"
+
 #include "common.hpp"
 
+#include <algorithm>
+#include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <span>
 
@@ -35,6 +39,29 @@ common::ObjectHeader ParseHeader(std::span<char> buffer) {
   header.linkedFileName = std::string(
       buffer.begin() + HeaderOffsets::LINKED_FILE_NAME, buffer.end());
   return header;
+}
+
+bool ToOctalCharsN(std::uint64_t value, char *destination,
+                   std::uint64_t maxLength) {
+  auto [ptr, ec] =
+      std::to_chars(destination, destination + maxLength, value, 8);
+  return (ec == std::errc());
+}
+
+bool SerialiseHeader(common::ObjectHeader const &header,
+                     std::span<char> buffer) {
+  if (buffer.size_bytes() < HEADER_SIZE_B)
+    return false;
+
+  std::fill(buffer.begin(), buffer.end(), 0x00);
+
+  std::copy_n(header.fileName.begin(), header.fileName.size(),
+              buffer.begin() + HeaderOffsets::FILE_NAME);
+
+  bool status{true};
+  status |= ToOctalCharsN(header.fileSize,
+                          buffer.data() + HeaderOffsets::FILE_SIZE, 12);
+  return status;
 }
 
 } // namespace cc::tar::detail
