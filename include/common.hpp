@@ -12,7 +12,6 @@ struct ObjectHeader {
 
   std::uint64_t userID;
   std::uint64_t groupID;
-  std::uint64_t checkSum;
 
   uint8_t linkIndicator;
   std::string linkedFileName;

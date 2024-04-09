@@ -1,6 +1,7 @@
 #pragma once
 
 #include "boost/leaf.hpp"
+#include <cstdlib>
 
 namespace cc::tar {
 
@@ -32,17 +33,33 @@ template <class... Item> [[nodiscard]] inline auto NewError(Item &&...p_item) {
 struct InvalidArgs {
   static constexpr int CODE = -1;
 };
+
 struct InvalidFile {
   static constexpr int CODE = -2;
 };
+
 struct InvalidStream {
   static constexpr int CODE = -3;
 };
+
 struct InvalidContents {
   static constexpr int CODE = -4;
   std::string fileName;
   std::string description;
 };
+
+struct InvalidBufferSize {
+  static constexpr int CODE = -5;
+};
+
+struct InvalidConversion {
+  static constexpr int CODE = -6;
+};
+
+struct InvalidChecksum {
+  static constexpr int CODE = -7;
+};
+
 struct UnexpectedError {
   static constexpr int CODE = -99;
 };

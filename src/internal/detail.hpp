@@ -3,12 +3,13 @@
 #include <span>
 
 #include "common.hpp"
+#include "error.hpp"
 
 namespace cc::tar::detail {
 
-common::ObjectHeader ParseHeader(std::span<char> buffer);
+[[nodiscard]] Result<common::ObjectHeader> ParseHeader(std::span<char> buffer);
 
-bool SerialiseHeader(common::ObjectHeader const &header,
-                     std::span<char> buffer);
+[[nodiscard]] Status SerialiseHeader(common::ObjectHeader const &header,
+                                     std::span<char> buffer);
 
 } // namespace cc::tar::detail

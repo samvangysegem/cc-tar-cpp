@@ -24,6 +24,15 @@ CPMAddPackage(
         boostorg/leaf
 )
 
+CPMAddPackage(
+        NAME
+        Catch2
+        GIT_TAG
+        v3.5.3
+        GITHUB_REPOSITORY
+        catchorg/Catch2
+)
+
 # Main program
 add_executable(cc-tar 
         main.cpp 
@@ -49,7 +58,20 @@ target_compile_options(cc-tar
         -Wfloat-conversion
 )
 
-target_compile_definitions(cc-tar 
-        PRIVATE 
-        DEBUG
+# Unit tests
+add_executable(cc-tar-tests 
+        test/test.cpp
+        src/detail.cpp
+)
+
+target_include_directories(cc-tar-tests
+        PRIVATE
+        include
+        src/internal
+)
+
+target_link_libraries(cc-tar-tests
+        PRIVATE
+        boost_leaf
+        Catch2::Catch2WithMain
 )

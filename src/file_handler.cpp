@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "boost/leaf/error.hpp"
 #include "common.hpp"
 #include "detail.hpp"
 #include "error.hpp"
@@ -22,6 +23,7 @@ Result<std::vector<common::ObjectHeader>> FileHandler::ListContents() noexcept {
     return NewError(InvalidFile{});
   }
 
+  // TODO: Introduce scopeguard class for file management
   std::ifstream tarFile(mTarFilePath, std::ios::binary);
   if (!tarFile) {
     return NewError(InvalidStream{});
@@ -30,14 +32,7 @@ Result<std::vector<common::ObjectHeader>> FileHandler::ListContents() noexcept {
   std::vector<common::ObjectHeader> output{};
   std::vector<char> buffer(CHUNK_SIZE_B);
   while (tarFile.read(buffer.data(), CHUNK_SIZE_B) || tarFile.gcount()) {
-#ifdef DEBUG
-    std::cout << "Read " << tarFile.gcount() << " bytes of Tarfile header"
-              << std::endl;
-#endif
-
-    auto header = detail::ParseHeader(buffer);
-    if (header.fileName.empty() || header.fileSize == 0)
-      break;
+    BOOST_LEAF_AUTO(header, detail::ParseHeader(buffer));
     output.push_back(header);
 
     auto fileSizeChunks = header.fileSize / CHUNK_SIZE_B + 1;
@@ -61,11 +56,9 @@ Status FileHandler::Extract() noexcept {
 
   std::vector<char> buffer(CHUNK_SIZE_B);
   while (tarFile.read(buffer.data(), CHUNK_SIZE_B) || tarFile.gcount()) {
-    auto header = detail::ParseHeader(buffer);
+    BOOST_LEAF_AUTO(header, detail::ParseHeader(buffer));
 
-    // Validate header
-    if (header.fileName.empty() || header.fileSize == 0)
-      break;
+    // Validate file path
     if (header.fileName.find("../", 0) != std::string::npos) {
       return NewError(InvalidContents{.fileName = header.fileName,
                                       .description = "Path contains \"..\""});
@@ -116,8 +109,7 @@ Status FileHandler::Compress(std::vector<std::string> filePaths) noexcept {
     header.fileSize = 120;
 
     // Write to output buffer
-    if (!detail::SerialiseHeader(header, buffer))
-      return NewError(UnexpectedError{});
+    BOOST_LEAF_CHECK(detail::SerialiseHeader(header, buffer));
     tarFile.write(buffer.data(), buffer.size());
 
     std::fill(buffer.begin(), buffer.end(), 0x00);
