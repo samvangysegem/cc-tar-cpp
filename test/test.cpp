@@ -1,12 +1,51 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
-#include <iostream>
 
 #include "common.hpp"
 #include "detail.hpp"
 
-TEST_CASE("Tar header serialisation & deserialisation",
-          "[header-serialisation]") {
+TEST_CASE("Field (de)serialisation", "[field-serialisation]") {
+  using namespace cc::tar;
+  std::array<char, 512> buffer{0x00};
+
+  SECTION("String_t read & write") {
+    std::string fileName{"test_file.txt"};
+
+    auto writeResult = helpers::Write<common::FILE_NAME>(fileName, buffer);
+    REQUIRE(writeResult);
+
+    auto readResult = helpers::Read<common::FILE_NAME>(buffer);
+    REQUIRE(readResult);
+
+    REQUIRE(readResult.value().compare(fileName) == 0);
+  }
+
+  SECTION("Octal_t read & write") {
+    std::uint64_t fileSize = 4096;
+
+    auto writeResult = helpers::Write<common::FILE_SIZE>(fileSize, buffer);
+    REQUIRE(writeResult);
+
+    auto readResult = helpers::Read<common::FILE_SIZE>(buffer);
+    REQUIRE(readResult);
+
+    REQUIRE(readResult.value() == fileSize);
+  }
+
+  SECTION("EnumClass_t read & write") {
+    common::LinkIndicator linkId = common::LinkIndicator::HARD_LINK;
+
+    auto writeResult = helpers::Write<common::LINK_INDICATOR>(linkId, buffer);
+    REQUIRE(writeResult);
+
+    auto readResult = helpers::Read<common::LINK_INDICATOR>(buffer);
+    REQUIRE(readResult);
+
+    REQUIRE(readResult.value() == linkId);
+  }
+}
+
+TEST_CASE("Tar header (de)serialisation", "[header-serialisation]") {
   using namespace cc::tar;
 
   static constexpr std::uint16_t HEADER_SIZE_B = 257;
@@ -16,7 +55,8 @@ TEST_CASE("Tar header serialisation & deserialisation",
   static constexpr std::uint64_t FILE_MODE = 72;
   static constexpr std::uint64_t USER_ID = 1829;
   static constexpr std::uint64_t GROUP_ID = 4;
-  static constexpr std::uint8_t LINK_ID = 32;
+  static constexpr common::LinkIndicator LINK_ID =
+      common::LinkIndicator::HARD_LINK;
   static constexpr const char *LINKED_FILE_NAME = "linked_test";
 
   common::ObjectHeader header{.fileName = FILE_NAME,
@@ -39,13 +79,7 @@ TEST_CASE("Tar header serialisation & deserialisation",
     REQUIRE(!result);
   }
 
-  SECTION("Serialise header to buffer of sufficient size") {
-    std::array<char, 512> buffer{0x00};
-    auto result = detail::SerialiseHeader(header, buffer);
-    REQUIRE(result);
-  }
-
-  SECTION("Validate successive serialisation and deserialisation of header") {
+  SECTION("Successive serialisation and deserialisation of header") {
     std::array<char, 512> buffer{0x00};
     auto result = detail::SerialiseHeader(header, buffer);
     REQUIRE(result);
@@ -63,7 +97,16 @@ TEST_CASE("Tar header serialisation & deserialisation",
     REQUIRE(newHeader.linkedFileName.compare(LINKED_FILE_NAME) == 0);
   }
 
-  // TODO
-  // Invalid checksum
-  // fileName too long
+  SECTION("Invalid checksum upon deserialisation of header") {
+    std::array<char, 512> buffer{0x00};
+    auto result = detail::SerialiseHeader(header, buffer);
+    REQUIRE(result);
+
+    // Change checksum value
+    static constexpr std::uint32_t CHECKSUM_OFFSET = 148;
+    buffer[CHECKSUM_OFFSET] += 1;
+
+    auto parseResult = detail::ParseHeader(buffer);
+    REQUIRE(!parseResult);
+  }
 }
