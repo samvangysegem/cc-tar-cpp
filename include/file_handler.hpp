@@ -5,9 +5,10 @@
 #include <vector>
 
 #include "common.hpp"
-#include "error.hpp"
+#include "svgys/error.hpp"
 
 namespace cc::tar {
+using namespace svgys::error;
 
 class FileHandler {
 public:

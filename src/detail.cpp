@@ -2,7 +2,6 @@
 
 #include "boost/leaf/error.hpp"
 #include "common.hpp"
-#include "error.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -33,7 +32,7 @@ Status VerifyChecksum(std::span<char> buffer) {
   auto checkSum = CalculateChecksum(buffer);
 
   if (checkSum != headerCheckSum)
-    return NewError(InvalidChecksum{});
+    return NewError(error::InvalidChecksum{});
   return Success();
 }
 
@@ -41,7 +40,7 @@ Status VerifyChecksum(std::span<char> buffer) {
 Result<common::ObjectHeader> ParseHeader(std::span<char> buffer) {
   using namespace cc::tar::helpers;
   if (buffer.size_bytes() < HEADER_SIZE_B)
-    return NewError(InvalidBufferSize{});
+    return NewError(error::InvalidBufferSize{});
 
   BOOST_LEAF_CHECK(VerifyChecksum(buffer));
 
@@ -61,7 +60,7 @@ Status SerialiseHeader(common::ObjectHeader const &header,
                        std::span<char> buffer) {
   using namespace cc::tar::helpers;
   if (buffer.size_bytes() < HEADER_SIZE_B)
-    return NewError(InvalidBufferSize{});
+    return NewError(error::InvalidBufferSize{});
   std::fill(buffer.begin(), buffer.end(), 0x00);
 
   BOOST_LEAF_CHECK(Write<common::FILE_NAME>(header.fileName, buffer));

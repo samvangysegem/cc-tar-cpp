@@ -4,9 +4,10 @@
 #include <span>
 
 #include "common.hpp"
-#include "error.hpp"
+#include "svgys/error.hpp"
 
 namespace cc::tar::detail {
+using namespace svgys::error;
 
 [[nodiscard]] Result<common::ObjectHeader> ParseHeader(std::span<char> buffer);
 

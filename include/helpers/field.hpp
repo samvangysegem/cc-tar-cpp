@@ -1,9 +1,10 @@
 #pragma once
 
-#include "error.hpp"
+#include "svgys/error.hpp"
 #include <span>
 
 namespace cc::tar::helpers {
+using namespace svgys::error;
 
 template <typename T>
 concept FieldValueType = requires(std::span<char> span) {

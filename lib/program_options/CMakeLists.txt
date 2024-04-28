@@ -1,0 +1,3 @@
+add_library(program_options src/program_options.cpp)
+target_include_directories(program_options PUBLIC include)
+target_link_libraries(program_options PUBLIC error)

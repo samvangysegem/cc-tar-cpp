@@ -5,16 +5,18 @@
 #include <span>
 #include <string>
 
-#include "error.hpp"
+#include "error_code.hpp"
+#include "svgys/error.hpp"
 
 namespace cc::tar::helpers {
+using namespace svgys::error;
 
 struct String_t {
   using value_type = std::string;
 
   static Status Serialise(value_type value, std::span<char> buffer) {
     if (value.size() + 1 > buffer.size())
-      return NewError(InvalidConversion{});
+      return NewError(error::InvalidConversion{});
     std::copy_n(value.c_str(), value.size() + 1, buffer.begin());
     return Success();
   }
@@ -31,7 +33,7 @@ struct Octal_t {
     auto [ptr, ec] =
         std::to_chars(buffer.data(), buffer.data() + buffer.size(), value, 8);
     if (ec != std::errc()) {
-      return NewError(InvalidConversion{});
+      return NewError(error::InvalidConversion{});
     }
     return Success();
   }
@@ -41,7 +43,7 @@ struct Octal_t {
     auto [ptr, ec] = std::from_chars(buffer.data(),
                                      buffer.data() + buffer.size(), result, 8);
     if (ec != std::errc()) {
-      return NewError(InvalidConversion{});
+      return NewError(error::InvalidConversion{});
     }
     return {result};
   }
@@ -52,7 +54,8 @@ concept EnumClassConvertibleToCharType =
     std::is_enum_v<T> && std::is_same_v<std::underlying_type_t<T>, char> &&
     (!std::is_convertible_v<T, int>); // Enum class requirement
 
-template <EnumClassConvertibleToCharType T> struct EnumClass_t {
+template <EnumClassConvertibleToCharType T>
+struct EnumClass_t {
   using value_type = T;
 
   static Status Serialise(value_type value, std::span<char> buffer) {

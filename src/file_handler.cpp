@@ -4,11 +4,11 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <sys/stat.h>
 
-#include "boost/leaf/error.hpp"
 #include "common.hpp"
 #include "detail.hpp"
-#include "error.hpp"
+#include "error_code.hpp"
 
 namespace cc::tar {
 
@@ -20,13 +20,14 @@ bool FileHandler::IsValid() noexcept {
 
 Result<std::vector<common::ObjectHeader>> FileHandler::ListContents() noexcept {
   if (!IsValid()) {
-    return NewError(InvalidFile{});
+    return NewError(error::InvalidFile{mTarFilePath});
   }
 
   // TODO: Introduce scopeguard class for file management
   std::ifstream tarFile(mTarFilePath, std::ios::binary);
   if (!tarFile) {
-    return NewError(InvalidStream{});
+    return NewError(
+        error::InvalidStream{mTarFilePath, error::StreamType::INPUT});
   }
 
   std::vector<common::ObjectHeader> output{};
@@ -46,12 +47,13 @@ Result<std::vector<common::ObjectHeader>> FileHandler::ListContents() noexcept {
 
 Status FileHandler::Extract() noexcept {
   if (!IsValid()) {
-    return NewError(InvalidFile{});
+    return NewError(error::InvalidFile{mTarFilePath});
   }
 
   std::ifstream tarFile(mTarFilePath, std::ios::binary);
   if (!tarFile) {
-    return NewError(InvalidStream{});
+    return NewError(
+        error::InvalidStream{mTarFilePath, error::StreamType::INPUT});
   }
 
   std::vector<char> buffer(CHUNK_SIZE_B);
@@ -60,14 +62,14 @@ Status FileHandler::Extract() noexcept {
 
     // Validate file path
     if (header.fileName.find("../", 0) != std::string::npos) {
-      return NewError(InvalidContents{.fileName = header.fileName,
-                                      .description = "Path contains \"..\""});
+      return NewError(error::InvalidContents{});
     }
 
     // Create new file with object contents
     std::ofstream extractedFile(header.fileName, std::ios::binary);
     if (!extractedFile)
-      return NewError(InvalidStream{});
+      return NewError(
+          error::InvalidStream{header.fileName, error::StreamType::OUTPUT});
 
     for (std::uint64_t offset = 0; offset < header.fileSize;
          offset += CHUNK_SIZE_B) {
@@ -88,25 +90,33 @@ Status FileHandler::Extract() noexcept {
 
 Status FileHandler::Compress(std::vector<std::string> filePaths) noexcept {
   if (!IsValid()) {
-    return NewError(InvalidFile{});
+    return NewError(error::InvalidFile{mTarFilePath});
   }
 
   std::ofstream tarFile(mTarFilePath, std::ios::binary);
   if (!tarFile) {
-    return NewError(InvalidStream{});
+    return NewError(
+        error::InvalidStream{mTarFilePath, error::StreamType::OUTPUT});
   }
 
   std::array<char, CHUNK_SIZE_B> buffer{0x00};
   for (auto const &filePath : filePaths) {
     std::ifstream inputFile(filePath, std::ios::binary);
     if (!inputFile)
-      return NewError(InvalidFile{});
+      return NewError(error::InvalidStream{filePath, error::StreamType::INPUT});
 
-    // Extract header
-    // Write method for extracting header info from filename
+    // Extract file information
+    struct stat fileInfo;
+    if (stat(filePath.data(), &fileInfo) != 0) {
+      return NewError(error::InvalidFile{filePath});
+    }
+
     common::ObjectHeader header{};
     header.fileName = filePath;
-    header.fileSize = 120;
+    header.fileSize = fileInfo.st_size;
+    header.fileMode = fileInfo.st_mode;
+    header.userID = fileInfo.st_uid;
+    header.groupID = fileInfo.st_gid;
 
     // Write to output buffer
     BOOST_LEAF_CHECK(detail::SerialiseHeader(header, buffer));

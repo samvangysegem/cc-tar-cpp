@@ -1,8 +1,77 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
+#include <string>
 
 #include "common.hpp"
 #include "detail.hpp"
+#include "svgys/program_options.hpp"
+
+TEST_CASE("Program option parser", "[option-parser]") {
+  const int argc = 7;
+  const char *argv[argc] = {"cc-tar",    "--compress", "test.tar", "file1.txt",
+                            "file2.txt", "--seed",     "10"};
+
+  SECTION("Valid flags") {
+    using namespace svgys::program_options;
+
+    OptionsParser parser{};
+    parser.AddOptions()("compress", "compress files to tar ball")(
+        "extract", "extract files from tar ball")(
+        "seed", "random number used for testing");
+    auto result = parser.Parse(argc, argv);
+    REQUIRE(result);
+  }
+
+  SECTION("Invalid flag") {
+    using namespace svgys::program_options;
+
+    OptionsParser parser{};
+    parser.AddOptions()("compress", "compress files to tar ball")(
+        "files", "files to add"); // --seed flag left out
+    auto result = parser.Parse(argc, argv);
+    REQUIRE(!result);
+  }
+
+  SECTION("Flag parsing") {
+    using namespace svgys::program_options;
+
+    OptionsParser parser{};
+    parser.AddOptions()("compress", "compress files to tar ball")(
+        "extract", "extract files from tar ball")(
+        "seed", "random number used for testing");
+    auto result = parser.Parse(argc, argv);
+    REQUIRE(result);
+
+    REQUIRE(result.value().Contains("compress"));
+    REQUIRE(result.value().Contains("seed"));
+    REQUIRE(!result.value().Contains("extract"));
+    REQUIRE(!result.value().Contains("cc-tar"));
+  }
+
+  SECTION("Argument parsing") {
+    using namespace svgys::program_options;
+
+    OptionsParser parser{};
+    parser.AddOptions()("compress", "compress files to tar ball")(
+        "extract", "extract files from tar ball")(
+        "seed", "random number used for testing");
+    auto result = parser.Parse(argc, argv);
+    REQUIRE(result);
+
+    auto file = result.value().AtAs<std::string>("compress");
+    REQUIRE(!file);
+
+    auto files = result.value().AtAs<std::vector<std::string>>("compress");
+    REQUIRE(files);
+    auto seed = result.value().AtAs<int>("seed");
+    REQUIRE(seed);
+
+    REQUIRE(files.value()[0].compare("test.tar") == 0);
+    REQUIRE(files.value()[1].compare("file1.txt") == 0);
+    REQUIRE(files.value()[2].compare("file2.txt") == 0);
+    REQUIRE(seed.value() == 10);
+  }
+}
 
 TEST_CASE("Field (de)serialisation", "[field-serialisation]") {
   using namespace cc::tar;
@@ -51,7 +120,7 @@ TEST_CASE("Tar header (de)serialisation", "[header-serialisation]") {
   static constexpr std::uint16_t HEADER_SIZE_B = 257;
 
   static constexpr const char *FILE_NAME = "test";
-  static constexpr std::uint64_t FILE_SIZE = 100;
+  static constexpr std::uint64_t FILE_SIZE = 12;
   static constexpr std::uint64_t FILE_MODE = 72;
   static constexpr std::uint64_t USER_ID = 1829;
   static constexpr std::uint64_t GROUP_ID = 4;
